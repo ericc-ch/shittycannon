@@ -1,0 +1,79 @@
+{
+  "lsp": {
+    "deno": {
+      "settings": {
+        "deno": {
+          "enable": true,
+          "enablePaths": ["typescript-effect"]
+        }
+      }
+    }
+  },
+  "languages": {
+    "JavaScript": {
+      "format_on_save": "on",
+      "language_servers": ["deno"],
+      "prettier": { "allowed": false },
+      "formatter": {
+        "external": {
+          "command": "deno",
+          "arguments": ["fmt", "--ext", "js", "-"]
+        }
+      }
+    },
+    "JSON": {
+      "format_on_save": "on",
+      "language_servers": ["deno"],
+      "prettier": { "allowed": false },
+      "formatter": {
+        "external": {
+          "command": "deno",
+          "arguments": ["fmt", "--ext", "json", "-"]
+        }
+      }
+    },
+    "JSONC": {
+      "format_on_save": "on",
+      "language_servers": ["deno"],
+      "prettier": { "allowed": false },
+      "formatter": {
+        "external": {
+          "command": "deno",
+          "arguments": ["fmt", "--ext", "jsonc", "-"]
+        }
+      }
+    },
+    "Markdown": {
+      "format_on_save": "on",
+      "prettier": { "allowed": false },
+      "formatter": {
+        "external": {
+          "command": "deno",
+          "arguments": ["fmt", "--ext", "md", "-"]
+        }
+      }
+    },
+    "TypeScript": {
+      "format_on_save": "on",
+      "language_servers": ["deno"],
+      "prettier": { "allowed": false },
+      "formatter": {
+        "external": {
+          "command": "deno",
+          "arguments": ["fmt", "--ext", "ts", "-"]
+        }
+      }
+    },
+    "TSX": {
+      "format_on_save": "on",
+      "language_servers": ["deno"],
+      "prettier": { "allowed": false },
+      "formatter": {
+        "external": {
+          "command": "deno",
+          "arguments": ["fmt", "--ext", "tsx", "-"]
+        }
+      }
+    }
+  }
+}
