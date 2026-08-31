@@ -35,7 +35,6 @@ Deno.test("--help lists the subset flags", async () => {
   assertStringIncludes(result.stdout, "--timeout")
   assertStringIncludes(result.stdout, "--json")
   assertStringIncludes(result.stdout, "--latency")
-  assertStringIncludes(result.stdout, "--no-progress")
 })
 
 Deno.test("unknown autocannon flags fail", async () => {

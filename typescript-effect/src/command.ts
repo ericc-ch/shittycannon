@@ -128,11 +128,6 @@ export const shittycannon = Command.make(
       Flag.withDescription("Print all the latency data. default: false."),
       Flag.withDefault(Disabled),
     ),
-    noProgress: Flag.boolean("no-progress").pipe(
-      Flag.withAlias("n"),
-      Flag.withDescription("Don't render the progress bar. default: false."),
-      Flag.withDefault(Disabled),
-    ),
   },
   Effect.fn("shittycannon")(function* (config) {
     if (Option.isSome(Option.all([config.body, config.input]))) {

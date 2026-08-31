@@ -162,6 +162,5 @@ func newCommand() *cobra.Command {
 	cmd.Flags().StringArrayVarP(&headerPairs, "headers", "H", nil, "The request headers.")
 	cmd.Flags().BoolVarP(&asJSON, "json", "j", false, "Print the output as newline delimited JSON. This will cause the progress bar and results not to be rendered. default: false.")
 	cmd.Flags().BoolVarP(&latency, "latency", "l", false, "Print all the latency data. default: false.")
-	cmd.Flags().BoolP("no-progress", "n", false, "Don't render the progress bar. default: false.")
 	return cmd
 }

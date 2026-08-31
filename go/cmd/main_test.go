@@ -65,7 +65,6 @@ func TestHelpListsSubsetFlags(t *testing.T) {
 		"--timeout",
 		"--json",
 		"--latency",
-		"--no-progress",
 	} {
 		if !strings.Contains(stdout, flag) {
 			t.Fatalf("help missing %s\n%s", flag, stdout)
