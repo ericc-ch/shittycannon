@@ -39,7 +39,7 @@ func TestHttpsStaysOnHTTP1WhenServerOffersHTTP2(t *testing.T) {
 		Connections:    1,
 		Stop:           runoptions.Amount{Requests: 1},
 		Method:         runoptions.MethodGet,
-		Body:           runoptions.EmptyBody{},
+		Body:           "",
 		TimeoutSeconds: 5,
 	})
 	if result.Status2xx != 1 {

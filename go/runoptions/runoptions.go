@@ -18,20 +18,6 @@ type Amount struct {
 
 func (Amount) stop() {}
 
-type Body interface {
-	body()
-}
-
-type EmptyBody struct{}
-
-func (EmptyBody) body() {}
-
-type TextBody struct {
-	Value string
-}
-
-func (TextBody) body() {}
-
 type Method string
 
 const (
@@ -51,15 +37,6 @@ type RunOptions struct {
 	Stop           Stop
 	Method         Method
 	Headers        map[string]string
-	Body           Body
+	Body           string
 	TimeoutSeconds int
-}
-
-func AllowsBody(method Method) bool {
-	switch method {
-	case MethodGet, MethodHead, MethodOptions, MethodTrace:
-		return false
-	default:
-		return true
-	}
 }

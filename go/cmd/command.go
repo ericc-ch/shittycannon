@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 
 	"ericc-ch/shittycannon/cannon"
@@ -22,9 +21,9 @@ const (
 	defaultMethod      = "GET"
 )
 
-func parsePositive(name string, value int) error {
+func checkPositive(name string, value int) error {
 	if value <= 0 {
-		return FlagError{Name: name, Value: strconv.Itoa(value), Reason: "must be greater than 0"}
+		return fmt.Errorf("%s: must be greater than 0, got %d", name, value)
 	}
 	return nil
 }
@@ -35,20 +34,20 @@ func parseMethod(input string) (runoptions.Method, error) {
 	case runoptions.MethodGet, runoptions.MethodPost, runoptions.MethodPut, runoptions.MethodDelete, runoptions.MethodPatch, runoptions.MethodHead, runoptions.MethodOptions, runoptions.MethodTrace:
 		return runoptions.Method(upper), nil
 	default:
-		return "", FlagError{Name: "method", Value: input, Reason: "unsupported HTTP method"}
+		return "", fmt.Errorf("method: unsupported HTTP method %q", input)
 	}
 }
 
 func parseTargetURL(input string) (*url.URL, error) {
 	parsed, err := url.Parse(input)
 	if err != nil {
-		return nil, FlagError{Name: "url", Value: input, Reason: err.Error()}
+		return nil, fmt.Errorf("url: %v", err)
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return nil, FlagError{Name: "url", Value: input, Reason: "URL must use http or https"}
+		return nil, fmt.Errorf("url: must use http or https")
 	}
 	if parsed.Host == "" {
-		return nil, FlagError{Name: "url", Value: input, Reason: "URL must use http or https"}
+		return nil, fmt.Errorf("url: must include a host")
 	}
 	return parsed, nil
 }
@@ -58,7 +57,7 @@ func parseHeaders(pairs []string) (map[string]string, error) {
 	for _, pair := range pairs {
 		key, value, ok := strings.Cut(pair, "=")
 		if !ok || key == "" {
-			return nil, FlagError{Name: "headers", Value: pair, Reason: "expected key=value"}
+			return nil, fmt.Errorf("headers: %q: expected key=value", pair)
 		}
 		headers[key] = value
 	}
@@ -84,19 +83,19 @@ func newCommand() *cobra.Command {
 		Short: "HTTP/1 load tester (autocannon subset)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := parsePositive("connections", connections); err != nil {
+			useAmount := cmd.Flags().Changed("amount")
+			if err := checkPositive("connections", connections); err != nil {
 				return err
 			}
-			if err := parsePositive("duration", duration); err != nil {
+			if err := checkPositive("timeout", timeout); err != nil {
 				return err
 			}
-			if err := parsePositive("timeout", timeout); err != nil {
-				return err
-			}
-			if cmd.Flags().Changed("amount") {
-				if err := parsePositive("amount", amount); err != nil {
+			if useAmount {
+				if err := checkPositive("amount", amount); err != nil {
 					return err
 				}
+			} else if err := checkPositive("duration", duration); err != nil {
+				return err
 			}
 			parsedURL, err := parseTargetURL(args[0])
 			if err != nil {
@@ -113,21 +112,21 @@ func newCommand() *cobra.Command {
 			bodySet := cmd.Flags().Changed("body")
 			inputSet := cmd.Flags().Changed("input")
 			if bodySet && inputSet {
-				return UsageError{Message: "use either -b/--body or -i/--input, not both"}
+				return fmt.Errorf("use either -b/--body or -i/--input, not both")
 			}
-			var requestBody runoptions.Body = runoptions.EmptyBody{}
+			var requestBody string
 			if bodySet {
-				requestBody = runoptions.TextBody{Value: body}
+				requestBody = body
 			}
 			if inputSet {
 				raw, readErr := os.ReadFile(input)
 				if readErr != nil {
-					return FileReadError{Path: input, Err: readErr}
+					return readErr
 				}
-				requestBody = runoptions.TextBody{Value: string(raw)}
+				requestBody = string(raw)
 			}
 			var stop runoptions.Stop = runoptions.Duration{Seconds: duration}
-			if cmd.Flags().Changed("amount") {
+			if useAmount {
 				stop = runoptions.Amount{Requests: amount}
 			}
 			result := cannon.Run(runoptions.RunOptions{

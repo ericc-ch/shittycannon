@@ -108,6 +108,53 @@ func TestAmountRunAgainstLocalServer(t *testing.T) {
 	}
 }
 
+func TestAmountIgnoresInvalidDuration(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	code, stdout, stderr := runCli(t, "-c", "1", "-a", "1", "-d", "0", "-j", server.URL+"/")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %s", code, stderr)
+	}
+	var result struct {
+		Status2xx int `json:"2xx"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Status2xx != 1 {
+		t.Fatalf("%+v %s", result, stdout)
+	}
+}
+
+func TestBodyIsSentRegardlessOfMethod(t *testing.T) {
+	var mu sync.Mutex
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Error(err)
+		}
+		mu.Lock()
+		got = string(body)
+		mu.Unlock()
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	code, _, stderr := runCli(t, "-c", "1", "-a", "1", "-m", "GET", "-b", "hello", "-j", server.URL+"/")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %s", code, stderr)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if got != "hello" {
+		t.Fatalf("body %q", got)
+	}
+}
+
 func TestPostBodyFromInputFile(t *testing.T) {
 	type seen struct {
 		method string

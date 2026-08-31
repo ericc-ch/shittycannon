@@ -1,12 +1,13 @@
 package cannon
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -67,19 +68,36 @@ func (t *totals) snapshot() report.Totals {
 	}
 }
 
+func (t *totals) recordLatency(elapsed time.Duration, bytes int, statusCode int) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.latencies = append(t.latencies, float64(elapsed)/float64(time.Millisecond))
+	t.bytes += bytes
+	if statusCode >= 200 && statusCode < 300 {
+		t.status2xx++
+	} else {
+		t.non2xx++
+	}
+}
+
+func (t *totals) recordFailure(err error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if errors.Is(err, context.DeadlineExceeded) {
+		t.timeouts++
+	} else {
+		t.errors++
+	}
+}
+
 func fireOnce(client *http.Client, options runoptions.RunOptions, acc *totals) {
 	var body io.Reader
-	switch b := options.Body.(type) {
-	case runoptions.TextBody:
-		if runoptions.AllowsBody(options.Method) {
-			body = bytes.NewReader([]byte(b.Value))
-		}
+	if options.Body != "" {
+		body = strings.NewReader(options.Body)
 	}
 	req, err := http.NewRequest(string(options.Method), options.URL.String(), body)
 	if err != nil {
-		acc.mu.Lock()
-		acc.errors++
-		acc.mu.Unlock()
+		acc.recordFailure(err)
 		return
 	}
 	for key, value := range options.Headers {
@@ -92,37 +110,16 @@ func fireOnce(client *http.Client, options runoptions.RunOptions, acc *totals) {
 	started := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
-		acc.mu.Lock()
-		if errors.Is(err, context.DeadlineExceeded) {
-			acc.timeouts++
-		} else {
-			acc.errors++
-		}
-		acc.mu.Unlock()
+		acc.recordFailure(err)
 		return
 	}
 	buf, readErr := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if readErr != nil {
-		acc.mu.Lock()
-		if errors.Is(readErr, context.DeadlineExceeded) {
-			acc.timeouts++
-		} else {
-			acc.errors++
-		}
-		acc.mu.Unlock()
+		acc.recordFailure(readErr)
 		return
 	}
-	elapsed := time.Since(started)
-	acc.mu.Lock()
-	acc.latencies = append(acc.latencies, float64(elapsed.Milliseconds()))
-	acc.bytes += len(buf)
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		acc.status2xx++
-	} else {
-		acc.non2xx++
-	}
-	acc.mu.Unlock()
+	acc.recordLatency(time.Since(started), len(buf), resp.StatusCode)
 }
 
 func Run(options runoptions.RunOptions) report.Report {
@@ -140,13 +137,24 @@ func Run(options runoptions.RunOptions) report.Report {
 
 	acc := &totals{}
 	gate := &intake{}
+
+	var wg sync.WaitGroup
+	var waitForStop func()
 	switch stop := options.Stop.(type) {
 	case runoptions.Amount:
 		remaining := stop.Requests
 		gate.remaining = &remaining
+		waitForStop = func() { wg.Wait() }
+	case runoptions.Duration:
+		waitForStop = func() {
+			time.Sleep(time.Duration(stop.Seconds) * time.Second)
+			gate.close()
+			wg.Wait()
+		}
+	default:
+		panic(fmt.Sprintf("cannon: unknown stop condition %T", options.Stop))
 	}
 
-	var wg sync.WaitGroup
 	started := time.Now()
 	for range options.Connections {
 		wg.Add(1)
@@ -160,15 +168,7 @@ func Run(options runoptions.RunOptions) report.Report {
 			}
 		}()
 	}
-
-	switch stop := options.Stop.(type) {
-	case runoptions.Duration:
-		time.Sleep(time.Duration(stop.Seconds) * time.Second)
-		gate.close()
-		wg.Wait()
-	default:
-		wg.Wait()
-	}
+	waitForStop()
 
 	return report.From(options.URL.String(), options.Connections, time.Since(started).Seconds(), acc.snapshot())
 }
