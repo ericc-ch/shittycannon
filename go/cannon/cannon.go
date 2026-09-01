@@ -157,16 +157,14 @@ func Run(options runoptions.RunOptions) report.Report {
 
 	started := time.Now()
 	for range options.Connections {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for {
 				if !gate.take() {
 					return
 				}
 				fireOnce(client, options, acc)
 			}
-		}()
+		})
 	}
 	waitForStop()
 

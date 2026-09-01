@@ -19,12 +19,7 @@ func percentile(sorted []float64, p float64) float64 {
 		return 0
 	}
 	rank := int(math.Ceil((p/100)*float64(len(sorted)))) - 1
-	if rank < 0 {
-		rank = 0
-	}
-	if rank >= len(sorted) {
-		rank = len(sorted) - 1
-	}
+	rank = min(max(rank, 0), len(sorted)-1)
 	return sorted[rank]
 }
 

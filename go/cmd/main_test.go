@@ -26,11 +26,11 @@ func TestMain(m *testing.M) {
 	build := exec.Command("go", "build", "-o", cliBin, ".")
 	build.Stderr = os.Stderr
 	if err := build.Run(); err != nil {
-		os.RemoveAll(dir)
+		_ = os.RemoveAll(dir)
 		os.Exit(1)
 	}
 	code := m.Run()
-	os.RemoveAll(dir)
+	_ = os.RemoveAll(dir)
 	os.Exit(code)
 }
 
